@@ -139,7 +139,49 @@ void Unblinded::OnUnblindedTokens(
   }
 
   std::vector<ledger::UnblindedToken> converted_list;
-  for (auto& item : list) {
+  for (const auto& item : list) {
+    ledger::UnblindedToken new_item;
+    new_item.id = item->id;
+    new_item.token_value = item->token_value;
+    new_item.public_key = item->public_key;
+    new_item.value = item->value;
+    new_item.creds_id = item->creds_id;
+    new_item.expires_at = item->expires_at;
+
+    converted_list.push_back(new_item);
+  }
+
+  ledger_->GetContributionInfo(contribution_id,
+      std::bind(&Unblinded::OnGetContributionInfo,
+                this,
+                _1,
+                converted_list,
+                callback));
+}
+
+void Unblinded::GetContributionInfoAndReservedUnblindedTokens(
+    const std::string& contribution_id,
+    GetContributionInfoAndUnblindedTokensCallback callback) {
+  auto get_callback = std::bind(&Unblinded::OnReservedUnblindedTokens,
+      this,
+      _1,
+      contribution_id,
+      callback);
+  ledger_->GetReservedUnblindedTokens(contribution_id, get_callback);
+}
+
+void Unblinded::OnReservedUnblindedTokens(
+    ledger::UnblindedTokenList list,
+    const std::string& contribution_id,
+    GetContributionInfoAndUnblindedTokensCallback callback) {
+  if (list.empty()) {
+    BLOG(0, "Token list is empty");
+    callback(nullptr, {});
+    return;
+  }
+
+  std::vector<ledger::UnblindedToken> converted_list;
+  for (const auto& item : list) {
     ledger::UnblindedToken new_item;
     new_item.id = item->id;
     new_item.token_value = item->token_value;
@@ -411,7 +453,7 @@ void Unblinded::ProcessTokens(
       _1,
       _2,
       callback);
-  GetContributionInfoAndUnblindedTokens(types, contribution_id, get_callback);
+  GetContributionInfoAndReservedUnblindedTokens(contribution_id, get_callback);
 }
 
 void Unblinded::OnProcessTokens(
